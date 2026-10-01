@@ -84,7 +84,7 @@ lines = [
     ("Nayi trip", "Trips sheet me example row ko copy karo. trip_id unique rakho, jaise manali-apr-2026. Wahi trip_id Stops, Costs, Changes, Problems, Gallery me likho. published = yes. is_sample = no."),
     ("Example trip", "Delhi → Jaipur wali row sirf layout dikhane ke liye hai. Apni trip daalne ke baad is row ka published = no kar dena, warna site pe Example dikhega."),
     ("Sheet ke naam", "Tabs ka naam mat badalna: Settings, Trips, Stops, Costs, Changes, Problems, Gallery. Header row (pehli line) bhi mat badalna."),
-    ("Costs — basis", "trip = poori gaadi ka bill (charging, toll). Room badhta nahi, log badhte hain to ye split hota hai.\nperson = har insaan pe ek baar.\nperson_day = khana. Yahi amount food slider ki shuruaat hai (per person per day).\nroom_night = hotel. 2 log = 1 room. Log badhenge to room badhega."),
+    ("Costs — basis", "trip = poori gaadi ka bill (charging, toll). Log badhenge to ye split hota hai, amount nahi badhta.\nperson = har insaan pe ek baar.\nperson_day = khana. Yahi amount food slider ki shuruaat hai (per person per day).\nroom_night = ek room ki ek raat. Trips me per_room = ek room me kitne log. 3 likha aur group 5 ya 6 hua to 2 room, hotel ka bill badhega. Khali = 2 log ek room."),
     ("Calculator", "Har trip page pe logon ka +/− hai, room ka +/− hai, aur khane ka slider hai. Extra cost bhi add kar sakte ho. Ye sirf us visitor ke estimate ke liye hai — sheet ki amount nahi badalti."),
     ("Share", "Har trip ka link WhatsApp, Instagram, aur baaki apps pe share hota hai. Link me trip khulti hai."),
     ("Consult ₹500", "Settings me whatsapp (9198xxxxxx, bina space) aur upi_id (name@bank) bharo. Form usi number pe WhatsApp karega, aur UPI se ₹500 ka pay button dikhega. Price badalni ho to consult_price."),
@@ -159,6 +159,7 @@ trip_headers = [
     "drive_video_url",
     "summary",
     "story",
+    "per_room",
 ]
 style_header(
     trips,
@@ -200,7 +201,7 @@ trips["A2"].comment = Comment("Unique id. Same id must be used on Stops, Costs, 
 
 # Stops
 stops = wb.create_sheet("Stops")
-stop_headers = ["trip_id", "stop_order", "name", "km", "kind", "battery", "notes", "photo_url"]
+stop_headers = ["trip_id", "stop_order", "name", "km", "kind", "battery", "notes", "photo_url", "amount"]
 style_header(stops, stop_headers, [24, 12, 22, 10, 12, 16, 55, 36])
 stop_rows = [
     ["example-delhi-jaipur", 1, "Delhi", 0, "start", "100%", "Left in the morning with a full battery.", ""],
@@ -217,7 +218,7 @@ add_list(stops, "E2:E500", '"start,charge,food,stay,sight,end"')
 
 # Costs
 costs = wb.create_sheet("Costs")
-cost_headers = ["trip_id", "category", "label", "amount", "basis", "notes", "proof_url"]
+cost_headers = ["trip_id", "category", "label", "amount", "basis", "notes", "proof_url", "per_room"]
 style_header(costs, cost_headers, [24, 14, 32, 12, 16, 55, 36])
 cost_rows = [
     ["example-delhi-jaipur", "charging", "DC fast charge at Shahpura", 850, "trip", "One session, about 45 minutes. The charger screenshot belongs with this line.", ""],

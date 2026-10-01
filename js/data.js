@@ -181,6 +181,7 @@
           distance_km: num(row.distance_km),
           ev_model: String(row.ev_model || "").trim(),
           party: String(row.party ?? "").trim() === "" ? 0 : Math.max(1, num(row.party)),
+          per_room: Math.max(0, num(row.per_room)),
           cover_url: String(row.cover_url || "").trim(),
           youtube_url: String(row.youtube_url || "").trim(),
           drive_video_url: String(row.drive_video_url || "").trim(),
@@ -211,6 +212,7 @@
         kind: String(row.kind || "sight").trim().toLowerCase(),
         battery: String(row.battery || "").trim(),
         notes: String(row.notes || "").trim(),
+        amount: num(row.amount),
         photo_url: String(row.photo_url || "").trim(),
       };
     }).sort(function (a, b) {
@@ -225,6 +227,7 @@
         label: String(row.label || "").trim(),
         amount: num(row.amount),
         basis: BASES.indexOf(basis) === -1 ? "trip" : basis,
+        per_room: Math.max(0, num(row.per_room)),
         notes: String(row.notes || "").trim(),
         proof_url: String(row.proof_url || "").trim(),
       };

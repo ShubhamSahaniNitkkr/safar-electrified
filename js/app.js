@@ -1,5 +1,5 @@
 (function () {
-  const LIMITS = { people: [1, 12], days: [1, 21], nights: [0, 20], rooms: [1, 8] };
+  const LIMITS = { people: [1, 12], days: [1, 21], nights: [0, 20], rooms: [1, 8], perRoom: [1, 8] };
   const CATS = {
     charging: "Charging",
     toll: "Toll",
@@ -24,6 +24,7 @@
     nights: 1,
     rooms: 1,
     roomsAuto: true,
+    perRoom: 2,
     food: 600,
     hotel: 2800,
     rate: 3.5,
@@ -122,9 +123,9 @@
         people: clampKey(trip.party || 2, "people"),
         days: clampKey(trip.days || 1, "days"),
         nights: clampKey(trip.nights || 0, "nights"),
-        rooms: SafarCalc.roomsFor(trip.party || 2),
+        rooms: SafarCalc.roomsFor(trip.party || 2, trip.per_room),
         roomsAuto: true,
-        food: snap(base.recordedFood || 600, 10),
+        food: snap(base.recordedFood || 0, 10),
         off: {},
         extras: [],
       };
@@ -142,9 +143,11 @@
     if (line.basis === "person") how = "× " + ctx.people + " people";
     if (line.basis === "person_day") how = "× " + ctx.people + " × " + ctx.days + " days";
     if (line.basis === "room_night") {
-      const rooms = ctx.rooms === 1 ? "1 room" : ctx.rooms + " rooms";
+      const rooms = line.rooms || ctx.rooms;
+      const roomWord = rooms === 1 ? "1 room" : rooms + " rooms";
       const nights = ctx.nights === 1 ? "1 night" : ctx.nights + " nights";
-      how = rooms + " × " + nights;
+      const fit = line.per_room || ctx.per_room || 2;
+      how = roomWord + " × " + nights + " · " + fit + " people fit in one room";
     }
     return cat + " · " + how;
   }
@@ -207,13 +210,24 @@
     );
   }
 
-  function stepper(scope, key, value, label) {
+  function stepper(scope, key, value, label, id) {
+    const extra = id ? ' data-id="' + esc(id) + '"' : "";
     return (
       '<div class="stepper"><button type="button" data-act="step" data-scope="' + scope + '" data-key="' + key +
-      '" data-dir="-1" aria-label="Fewer ' + label + '">−</button><span><strong data-stepcount="' + key + '">' +
+      extra + '" data-dir="-1" aria-label="Fewer ' + label + '">−</button><span><strong data-stepcount="' + key + '">' +
       value + "</strong> " + label + '</span><button type="button" data-act="step" data-scope="' + scope +
-      '" data-key="' + key + '" data-dir="1" aria-label="More ' + label + '">+</button></div>'
+      '" data-key="' + key + extra + '" data-dir="1" aria-label="More ' + label + '">+</button></div>'
     );
+  }
+
+  function fitCount(trip) {
+    return Math.max(1, Number(trip && trip.per_room) || 2);
+  }
+
+  function roomRule(fit) {
+    const low = fit + 1;
+    const high = fit * 2;
+    return "One room fits " + fit + ". " + low + " to " + high + " people need 2 rooms, so the hotel bill rises.";
   }
 
   function brand() {
@@ -383,24 +397,72 @@
   function stopsBlock(trip) {
     const stops = ofTrip(db.stops, trip);
     if (!stops.length) {
-      return '<section class="block"><h2>Checkpoints</h2><p class="wait">Stops will line up here. Tap one and the note, battery, and photo open.</p></section>';
+      return '<section class="block"><h2>Checkpoints</h2><p class="wait">Stops will line up here, under the film. Tap one and the note, the battery, and the money at that stop open.</p></section>';
     }
     const items = stops.map(function (stop, index) {
       const photo = SafarData.imageUrl(stop.photo_url, 1000);
       const view = SafarData.driveView(stop.photo_url) || photo;
       const open = index === 0;
+      const bits = [];
+      if (stop.km !== "") bits.push(stop.km + " km");
+      if (stop.amount) bits.push(inr(stop.amount));
       return (
         '<li class="' + (open ? "is-open" : "") + '"><span class="pin pin-' + esc(stop.kind || "sight") + '"></span><div>' +
         '<button type="button" class="stop-toggle" data-act="toggle-stop" aria-expanded="' + (open ? "true" : "false") + '"><span><strong>' +
-        esc(stop.name || "Stop") + '</strong><small>' + esc(KINDS[stop.kind] || "Stop") + "</small></span><span>" +
-        esc(stop.km === "" ? "" : stop.km + " km") + '</span></button><div class="stop-detail">' +
+        esc(stop.name || "Stop") + '</strong><small>' + esc(KINDS[stop.kind] || "Stop") + "</small></span><span class=\"stop-money\">" +
+        esc(bits.join(" · ")) + '</span></button><div class="stop-detail">' +
+        (stop.amount ? "<p><strong>" + inr(stop.amount) + "</strong> at this stop</p>" : "") +
         (stop.battery ? "<p>" + esc(stop.battery) + "</p>" : "") +
         (stop.notes ? "<p>" + esc(stop.notes) + "</p>" : "<p>No note on this stop yet.</p>") +
         (photo ? '<a class="stop-photo" href="' + esc(view) + '" target="_blank" rel="noopener" data-act="zoom" data-src="' + esc(photo) + '" data-cap="' + esc(stop.name) + '">' + coverTag(stop.photo_url, stop.name) + "</a>" : "") +
         "</div></div></li>"
       );
     }).join("");
-    return '<section class="block"><h2>Checkpoints</h2><p class="wait">Tap a stop to open it.</p><ol class="road">' + items + "</ol></section>";
+    return '<section class="block"><h2>Checkpoints</h2><p class="wait">Tap a stop. The note, the battery, and the money at that stop open underneath.</p><ol class="road">' + items + "</ol></section>";
+  }
+
+  function unitNote(row, trip) {
+    if (row.basis === "room_night") {
+      const fit = row.per_room || fitCount(trip);
+      return "per room / night · " + fit + " people fit in one room";
+    }
+    return basisWords(row.basis);
+  }
+
+  function proofText(url) {
+    const view = SafarData.driveView(url) || SafarData.external(url);
+    if (!view) return "";
+    return ' <a class="text-link" href="' + esc(view) + '" target="_blank" rel="noopener">Proof</a>';
+  }
+
+  function billRows(trip) {
+    return ofTrip(db.costs, trip).map(function (row) {
+      return {
+        group: CATS[row.category] || "Cost",
+        label: row.label || "Cost",
+        note: unitNote(row, trip),
+        amount: row.amount,
+        proof: row.proof_url,
+      };
+    });
+  }
+
+  function billList(trip) {
+    return billRows(trip).map(function (row) {
+      return (
+        '<li><span class="k">' + esc(row.group) + '</span><span><strong>' + esc(row.label) +
+        '</strong><small>' + esc(row.note) + proofText(row.proof) + "</small></span><b>" + inr(row.amount) + "</b></li>"
+      );
+    }).join("");
+  }
+
+  function spentBlock(trip) {
+    const rows = billRows(trip);
+    if (!rows.length) return "";
+    return (
+      '<section class="spend"><h2>Under the film</h2><p class="wait">These are the bills from the drive. Charging stays with the car. The room price is for one room. Food is per person.</p><ul class="subs">' +
+      billList(trip) + "</ul></section>"
+    );
   }
 
   function problemsBlock(trip) {
@@ -481,7 +543,7 @@
       '<div class="line is-on"><span class="tick"></span><span><strong>Food</strong><small>from the slider</small></span><b data-lineamt="food">' + inr(planned.foodAmount) + "</b></div>" +
       extras +
       '<form id="add-cost" class="add-cost"><input name="label" type="text" maxlength="40" placeholder="Extra for the car" aria-label="Extra cost name"><input name="amount" inputmode="numeric" placeholder="₹" aria-label="Extra cost amount"><button type="submit">Add</button></form>' +
-      '<p class="hint">Hotel uses the rooms you set. Two people usually share one room. Food follows the slider. Charging and tolls stay with the car.</p>' +
+      '<p class="hint">' + esc(roomRule(fitCount(trip))) + " Food follows the slider. Charging stays with the car.</p>" +
       '<div class="sharebar"><button type="button" class="btn btn-sun" data-act="wa-trip" data-id="' + esc(trip.slug) + '">Share this estimate</button>' +
       '<button type="button" class="linkish" data-act="reset-calc" data-id="' + esc(trip.slug) + '">Reset to this trip</button></div></div>'
     );
@@ -511,9 +573,10 @@
       (trip.is_sample ? '<p class="sample-note">Example trip. The numbers show how a page works. Replace this row in the sheet, or set published to no.</p>' : "") +
       (cover && !trip.youtube_url ? '<figure class="trip-cover">' + coverTag(trip.cover_url, trip.title) + "</figure>" : "") +
       videos(trip) +
+      spentBlock(trip) +
       '<div class="trip-layout' + (money ? "" : " is-single") + '"><div class="trip-main">' + shareBar(trip) +
       (trip.story ? '<section class="block story"><h2>What we did</h2>' + paragraphs(trip.story) + "</section>" : "") +
-      stopsBlock(trip) + problemsBlock(trip) + changesBlock(trip) + costsBlock(trip) + galleryBlock(trip) +
+      stopsBlock(trip) + problemsBlock(trip) + changesBlock(trip) + galleryBlock(trip) +
       (money ? "" : '<section class="block"><h2>The bill</h2><p class="wait">Charging, hotel, food, and tolls will show here, each one opening with its proof photo.</p></section>') +
       shareBar(trip) + "</div>" +
       (money ? '<aside class="calc-wrap" id="calc" data-trip="' + esc(trip.slug) + '">' + calcInner(trip) + "</aside>" : "") +
@@ -540,6 +603,7 @@
       days: days,
       nights: nights,
       rooms: rooms,
+      perRoom: clampKey(plan.perRoom, "perRoom"),
       distance: distance,
       food: food,
       hotel: hotel,
@@ -569,17 +633,75 @@
     ].join("\n");
   }
 
+  function sumOn(lines, test) {
+    return lines.reduce(function (sum, line) {
+      return sum + (line.on && test(line) ? line.amount : 0);
+    }, 0);
+  }
+
+  function planCard(trip) {
+    const href = "#/trip/" + esc(trip.slug);
+    if (trip.status === "soon") {
+      return (
+        '<article class="plan-trip"><p class="eyebrow">Coming soon</p><h2><a href="' + href + '">' + esc(trip.title) +
+        "</a></h2><p class=\"wait\">" + esc(trip.summary || "The film and the bill go up after the drive.") + "</p></article>"
+      );
+    }
+    if (!hasMoney(trip)) {
+      return (
+        '<article class="plan-trip" data-plantrip="' + esc(trip.slug) + '">' + routeHtml(trip.from_place, trip.to_place) +
+        '<h2><a href="' + href + '">' + esc(trip.title) + "</a></h2>" +
+        '<p class="wait">Charge, room, and food are not written yet. Once they are, anyone can raise the people here and the hotel follows how many fit in one room.</p>' +
+        '<p><a class="text-link" href="' + href + '">Open the film</a></p></article>'
+      );
+    }
+    const state = stateFor(trip);
+    const planned = modelFor(trip).planned;
+    const fit = fitCount(trip);
+    const charge = sumOn(planned.lines, function (line) { return line.category === "charging"; });
+    const stay = sumOn(planned.lines, function (line) { return line.basis === "room_night"; });
+    const stayLine = planned.lines.find(function (line) { return line.on && line.basis === "room_night"; });
+    const rooms = stayLine ? stayLine.rooms : state.rooms;
+    const roomWord = rooms === 1 ? "1 room" : rooms + " rooms";
+    const nightWord = planned.nights === 1 ? "1 night" : planned.nights + " nights";
+    let now = "";
+    if (ofTrip(db.costs, trip).some(function (row) { return row.category === "charging"; })) {
+      now += '<li><span class="k">Now</span><span><strong>Charging</strong><small>stays with the car</small></span><b>' + inr(charge) + "</b></li>";
+    }
+    if (ofTrip(db.costs, trip).some(function (row) { return row.basis === "room_night"; })) {
+      now += '<li><span class="k">Now</span><span><strong>Room</strong><small>' + roomWord + " × " + nightWord + " · " + fit + " per room</small></span><b>" + inr(stay) + "</b></li>";
+    }
+    if (ofTrip(db.costs, trip).some(function (row) { return row.category === "food"; }) || planned.foodAmount) {
+      now += '<li><span class="k">Now</span><span><strong>Food</strong><small>' + inr(state.food) + " × " + planned.people + " × " + planned.days + " days</small></span><b>" + inr(planned.foodAmount) + "</b></li>";
+    }
+    return (
+      '<article class="plan-trip" data-plantrip="' + esc(trip.slug) + '">' + routeHtml(trip.from_place, trip.to_place) +
+      '<h2><a href="' + href + '">' + esc(trip.title) + "</a></h2>" +
+      '<p class="wait">Prices from this drive. The lines marked Now follow the group below.</p><ul class="subs">' +
+      billList(trip) + now + "</ul>" +
+      '<div class="stepper-row">' + stepper("card", "people", state.people, "people", trip.slug) + stepper("card", "rooms", state.rooms, "rooms", trip.slug) + "</div>" +
+      '<p class="wait">' + esc(roomRule(fit)) + "</p>" +
+      '<p class="plan-sum"><strong>' + inr(planned.total) + '</strong><span>' + inr(planned.perPerson) + " per person</span></p>" +
+      '<p><a class="text-link" href="' + href + '">Open the film and the checkpoints</a></p></article>'
+    );
+  }
+
   function pagePlan() {
     const model = planModel();
+    const cards = (db.trips || []).map(planCard).join("");
     return (
-      '<div class="wrap page"><p class="eyebrow">Planner</p><h1>Price a drive before you do it.</h1>' +
-      '<p class="page-lead">This is a guess you can push around. Hotel assumes the rooms you set. Charging is rupees per kilometre, so drop it for home charging or raise it for fast chargers. A published trip is better when one exists — that page uses real bills.</p>' +
+      '<div class="wrap page"><p class="eyebrow">Planner</p><h1>Every trip, then your group.</h1>' +
+      '<p class="page-lead">Each drive keeps its own charge, room price, and food. Raise the people. If one room cannot hold them, the hotel bill goes up. Charging stays with the car.</p>' +
+      '<div class="plan-list">' + cards + "</div>" +
+      "<h2>A road that is not on the list yet</h2>" +
+      '<p class="page-lead">Use this when the drive has no film yet. Set how many people fit in one room, then add people. Five or six people in a room that fits three means two rooms, and the hotel follows.</p>' +
       '<div id="planner"><div class="plan-grid"><div class="paper"><div class="field-row"><label>From<input type="text" maxlength="40" placeholder="Delhi" value="' + esc(plan.from) + '" data-field="from"></label>' +
       '<label>To<input type="text" maxlength="40" placeholder="Jaipur" value="' + esc(plan.to) + '" data-field="to"></label></div>' +
       '<div class="field-row"><label>Distance (km)<input type="number" min="0" step="10" value="' + esc(plan.distance) + '" data-field="distance"></label>' +
       '<label>Tolls (₹)<input type="number" min="0" step="50" value="' + esc(plan.tolls) + '" data-field="tolls"></label></div>' +
-      '<div class="stepper-row">' + stepper("plan", "people", plan.people, "people") + stepper("plan", "rooms", plan.rooms, "rooms") + "</div>" +
-      '<div class="stepper-row">' + stepper("plan", "days", plan.days, "days") + stepper("plan", "nights", plan.nights, "nights") + "</div>" +
+      '<div class="stepper-row">' + stepper("plan", "people", plan.people, "people") + stepper("plan", "perRoom", plan.perRoom, "per room") + "</div>" +
+      '<div class="stepper-row">' + stepper("plan", "rooms", plan.rooms, "rooms") + stepper("plan", "days", plan.days, "days") + "</div>" +
+      '<div class="stepper-row">' + stepper("plan", "nights", plan.nights, "nights") + "</div>" +
       slider("food", "Food per person / day", inr(plan.food), plan.food, 0, 4000, 10, "₹0", "₹4,000") +
       slider("hotel", "Hotel per room / night", inr(plan.hotel), plan.hotel, 0, 15000, 100, "₹0", "₹15,000") +
       slider("rate", "Charging per km", rateLabel(plan.rate), plan.rate, 0, 15, 0.1, "₹0", "₹15") +
@@ -604,7 +726,7 @@
       '<div class="line is-on"><span class="tick"></span><span><strong>Charging</strong><small data-out="chargeDetail">' +
       rateLabel(model.rate) + " × " + model.distance + ' km</small></span><b data-out="charging">' + inr(model.charging) + "</b></div>" +
       '<div class="line is-on"><span class="tick"></span><span><strong>Stay</strong><small data-out="stayDetail">' +
-      rooms + " × " + nights + '</small></span><b data-out="stay">' + inr(model.stay) + "</b></div>" +
+      rooms + " × " + nights + " · " + model.perRoom + ' per room</small></span><b data-out="stay">' + inr(model.stay) + "</b></div>" +
       '<div class="line is-on"><span class="tick"></span><span><strong>Food</strong><small data-out="foodDetail">' +
       inr(model.food) + " × " + model.people + " × " + model.days + ' days</small></span><b data-out="meals">' + inr(model.meals) + "</b></div>" +
       '<div class="line is-on"><span class="tick"></span><span><strong>Tolls</strong><small>for the car</small></span><b data-out="tolls">' + inr(model.tolls) + "</b></div>" +
@@ -704,6 +826,12 @@
     });
   }
 
+  function refreshPlanCard(trip) {
+    const node = document.querySelector('[data-plantrip="' + CSS.escape(trip.slug) + '"]');
+    if (!node) return;
+    node.outerHTML = planCard(trip);
+  }
+
   function fillPlan() {
     const root = document.getElementById("planner");
     if (!root) return;
@@ -718,7 +846,7 @@
       meals: inr(model.meals),
       tolls: inr(model.tolls),
       chargeDetail: rateLabel(model.rate) + " × " + model.distance + " km",
-      stayDetail: rooms + " × " + nights,
+      stayDetail: rooms + " × " + nights + " · " + model.perRoom + " per room",
       foodDetail: inr(model.food) + " × " + model.people + " × " + model.days + " days",
     };
     root.querySelectorAll("[data-out]").forEach(function (el) {
@@ -854,10 +982,20 @@
     if (act === "step") {
       const key = btn.dataset.key;
       const dir = Number(btn.dataset.dir);
+      if (btn.dataset.scope === "card") {
+        const trip = findTrip(btn.dataset.id);
+        if (!trip) return;
+        const state = stateFor(trip);
+        state[key] = clampKey(state[key] + dir, key);
+        if (key === "rooms") state.roomsAuto = false;
+        if (key === "people" && state.roomsAuto) state.rooms = SafarCalc.roomsFor(state.people, trip.per_room);
+        refreshPlanCard(trip);
+        return;
+      }
       if (btn.dataset.scope === "plan") {
         plan[key] = clampKey(plan[key] + dir, key);
         if (key === "rooms") plan.roomsAuto = false;
-        if (key === "people" && plan.roomsAuto) plan.rooms = SafarCalc.roomsFor(plan.people);
+        if ((key === "people" || key === "perRoom") && plan.roomsAuto) plan.rooms = SafarCalc.roomsFor(plan.people, plan.perRoom);
         fillPlan();
       } else {
         const trip = activeTrip();
@@ -865,7 +1003,7 @@
         const state = stateFor(trip);
         state[key] = clampKey(state[key] + dir, key);
         if (key === "rooms") state.roomsAuto = false;
-        if (key === "people" && state.roomsAuto) state.rooms = SafarCalc.roomsFor(state.people);
+        if (key === "people" && state.roomsAuto) state.rooms = SafarCalc.roomsFor(state.people, trip.per_room);
         fillCalc(trip);
       }
       return;

@@ -274,6 +274,7 @@ h3 { margin: 0; font-size: 1.25rem; }
   padding: 0 0 4px;
 }
 .stop-toggle small { display: block; color: var(--muted); font-size: 0.82rem; }
+.stop-money { font-weight: 680; color: var(--leaf); white-space: nowrap; }
 .stop-detail { display: none; }
 .road li.is-open .stop-detail { display: block; }
 .trip-layout.is-single { grid-template-columns: 1fr; }
@@ -542,6 +543,37 @@ h3 { margin: 0; font-size: 1.25rem; }
 .hint { color: rgba(244, 241, 232, 0.62); font-size: 0.85rem; margin: 8px 0; }
 .linkish { background: none; border: 0; color: var(--sun-2); padding: 8px 0; font-weight: 680; }
 
+.plan-list { display: grid; gap: 16px; margin: 8px 0 36px; }
+.plan-trip {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 18px 18px 8px;
+}
+.plan-trip h2 { font-family: var(--serif); font-size: 2rem; margin: 4px 0 8px; }
+.plan-trip h2 a { color: inherit; text-decoration: none; }
+.subs { list-style: none; margin: 0; padding: 0; }
+.subs li {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.subs .k { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; color: var(--leaf); }
+.subs small { display: block; color: var(--muted); font-size: 0.82rem; }
+.subs b { font-variant-numeric: tabular-nums; }
+.plan-sum { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 4px 0 8px; }
+.plan-sum strong { font-family: var(--serif); font-size: 2rem; }
+.spend {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 8px 18px 14px;
+  margin: 0 0 22px;
+}
+.spend h2 { margin-bottom: 4px; }
 .plan-grid, .split { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 22px; align-items: start; }
 .paper {
   background: var(--paper);
@@ -610,7 +642,8 @@ h3 { margin: 0; font-size: 1.25rem; }
 }
 
 @media (max-width: 900px) {
-  .intro-grid, .trip-layout, .plan-grid, .split, .consult-band, .points, .soon, .soon-grid { grid-template-columns: 1fr; }
+  .intro-grid, .trip-layout, .plan-grid, .split, .consult-band, .points, .soon, .soon-grid, .subs li { grid-template-columns: 1fr; }
+  .subs b { justify-self: start; }
   .soon-kicker { writing-mode: horizontal-tb; transform: none; }
   .consult-band { justify-items: start; }
   .trip-layout { display: flex; flex-direction: column; }

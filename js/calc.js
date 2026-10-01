@@ -7,8 +7,18 @@
     return Math.min(max, Math.max(min, Number(n) || 0));
   }
 
-  function roomsFor(people) {
-    return Math.max(1, Math.ceil((Number(people) || 1) / 2));
+  function roomsFor(people, perRoom) {
+    const fit = Math.max(1, Number(perRoom) || 2);
+    return Math.max(1, Math.ceil((Number(people) || 1) / fit));
+  }
+
+  function fitFor(line, ctx) {
+    return Math.max(1, Number(line && line.per_room) || Number(ctx && ctx.per_room) || 2);
+  }
+
+  function roomsUsed(line, ctx) {
+    if (ctx && ctx.roomsAuto === false) return Math.max(1, Number(ctx.rooms) || 1);
+    return roomsFor(ctx.people, fitFor(line, ctx));
   }
 
   function lineAmount(line, ctx) {
@@ -19,7 +29,7 @@
       case "person_day":
         return amount * ctx.people * ctx.days;
       case "room_night":
-        return amount * ctx.rooms * ctx.nights;
+        return amount * roomsUsed(line, ctx) * ctx.nights;
       default:
         return amount;
     }
@@ -42,14 +52,24 @@
     const nights = clamp(input.nights, 0, 30);
     const rooms = clamp(input.rooms, 1, 12);
     const foodRateValue = Math.max(0, Number(input.foodRate) || 0);
-    const ctx = { people: people, days: days, nights: nights, rooms: rooms };
+    const ctx = {
+      people: people,
+      days: days,
+      nights: nights,
+      rooms: rooms,
+      roomsAuto: input.roomsAuto !== false,
+      per_room: input.per_room,
+    };
     const lines = (input.lines || []).map(function (line) {
       const on = line.on !== false;
+      const fit = fitFor(line, ctx);
       return {
         id: line.id,
         category: line.category,
         label: line.label,
         basis: line.basis,
+        per_room: fit,
+        rooms: line.basis === "room_night" ? roomsUsed(line, ctx) : rooms,
         on: on,
         amount: lineAmount(line, ctx),
       };
@@ -90,6 +110,7 @@
         label: cost.label || "Cost",
         amount: Number(cost.amount) || 0,
         basis: cost.basis || "trip",
+        per_room: Number(cost.per_room) || 0,
       };
       if (line.category === "food") foodLines.push(line);
       else lines.push(line);
@@ -112,7 +133,9 @@
       people: party,
       days: recDays,
       nights: recNights,
-      rooms: roomsFor(party),
+      rooms: roomsFor(party, trip.per_room),
+      roomsAuto: true,
+      per_room: trip.per_room,
       foodRate: recordedFood,
       lines: lines.map(function (line) {
         return Object.assign({}, line, { on: true });
@@ -124,8 +147,9 @@
       people: party,
       days: recDays,
       nights: recNights,
-      rooms: roomsFor(party),
-      food: recordedFood || 600,
+      rooms: roomsFor(party, trip.per_room),
+      roomsAuto: true,
+      food: recordedFood || 0,
       off: {},
       extras: [],
     };
@@ -134,6 +158,8 @@
       days: st.days,
       nights: st.nights,
       rooms: st.rooms,
+      roomsAuto: st.roomsAuto !== false,
+      per_room: trip.per_room,
       foodRate: st.food,
       lines: lines.map(function (line) {
         return Object.assign({}, line, { on: !(st.off && st.off[line.id]) });
@@ -153,6 +179,7 @@
   return {
     clamp: clamp,
     roomsFor: roomsFor,
+    fitFor: fitFor,
     lineAmount: lineAmount,
     foodRate: foodRate,
     estimate: estimate,
