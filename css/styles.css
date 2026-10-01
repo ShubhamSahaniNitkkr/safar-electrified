@@ -653,6 +653,9 @@ h3 { margin: 0; font-size: 1.25rem; }
 }
 
 @media (max-width: 760px) {
+  body { overflow-x: clip; }
+  .site-header { padding-top: env(safe-area-inset-top); }
+  .wrap { width: min(1120px, calc(100% - 24px)); }
   .nav-toggle { display: inline-flex; }
   .site-nav, .nav-cta { display: none; }
   .site-header.is-open .header-bar { flex-wrap: wrap; }
@@ -663,11 +666,23 @@ h3 { margin: 0; font-size: 1.25rem; }
     order: 3;
     padding: 6px 0 8px;
   }
+  .site-header.is-open .site-nav a { min-height: 44px; display: flex; align-items: center; }
   .site-header.is-open .nav-cta { display: inline-flex; justify-content: center; width: 100%; order: 4; margin-bottom: 8px; }
-  .field-row { grid-template-columns: 1fr; }
+  .intro-grid { padding-top: 28px; gap: 20px; }
+  h1 { font-size: clamp(2rem, 10vw, 2.6rem); }
+  .cta-row .btn, .sharebar .btn, .soon .btn { width: 100%; }
+  .soon { padding: 18px; }
+  .field-row, .add-cost, .extra { grid-template-columns: 1fr; flex-wrap: wrap; }
+  .add-cost input, .paper input, .paper textarea, .form input, .form textarea { font-size: 16px; }
+  .stepper { flex: 1 1 140px; }
+  .stepper button { width: 44px; height: 44px; }
   .bill, .change, .problem { grid-template-columns: 1fr; }
   .bill-side, .change-side { text-align: left; }
   .tcard { width: 100%; }
+  .stop-money { white-space: normal; text-align: right; }
+  .plan-trip h2, .plan-sum strong { font-size: 1.7rem; }
+  .video-frame { border-radius: 14px; }
+  #toast { width: calc(100% - 24px); text-align: center; bottom: calc(12px + env(safe-area-inset-bottom)); }
 }
 
 @media (hover: hover) {
