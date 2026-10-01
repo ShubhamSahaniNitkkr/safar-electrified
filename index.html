@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Safar Electrified — Travel, Charge, Explore</title>
+  <meta name="description" content="Real EV road trips with charging stops, costs, problems, and a planner. Watch the film, then price the same drive for your group.">
+  <meta name="theme-color" content="#10281c">
+  <link rel="icon" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
+  <meta property="og:title" content="Safar Electrified">
+  <meta property="og:description" content="Real EV road trips. Routes, charging stops, hotel and food, and what actually went wrong.">
+  <meta property="og:image" content="https://safar-electrified.com/assets/banner.jpg">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://safar-electrified.com/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,520;9..144,640&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css?v=3">
+</head>
+<body>
+  <div id="app">
+    <p class="loading">Loading trips…</p>
+  </div>
+  <div id="lightbox" hidden>
+    <button type="button" class="lb-backdrop" data-act="close-light" aria-label="Close photo"></button>
+    <figure>
+      <img alt="">
+      <figcaption></figcaption>
+    </figure>
+    <button type="button" class="lb-close" data-act="close-light">Close</button>
+  </div>
+  <div id="toast" role="status"></div>
+  <noscript>
+    <p class="loading">Safar Electrified needs JavaScript so it can read the trip sheet.</p>
+  </noscript>
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="config.js"></script>
+  <script src="js/calc.js"></script>
+  <script src="js/data.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
+</body>
+</html>
